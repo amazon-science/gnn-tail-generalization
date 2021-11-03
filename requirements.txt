@@ -97,7 +97,7 @@ stevedore==3.3.0
 tensorboard==2.5.0
 tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.0
-tensorflow==1.11.0
+tensorflow==2.5.1
 termcolor==1.1.0
 texttable==1.6.4
 threadpoolctl==2.1.0
