@@ -1,5 +1,3 @@
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
 
 
 from networkx.convert_matrix import to_numpy_array
@@ -71,7 +69,6 @@ class trainer:
     def train_seMLP_part1(self,):
         # This function train the first part of Cold-Brew: map node features to teacherGNN embeddings.
         # This function does not load teacherGNN; it train teacherGNN inside this function for itsef.
-        # -p1
 
         print('-'*30,'\n         Training TeacherGNN before train SEMLP\n','-'*30)
         self.train_teacherGNN()
@@ -114,7 +111,7 @@ class trainer:
                 part1_out = self.seMLP.forward_part1(self.data.x, batch_idx=batch_idx_train)
                 loss_test = lossfun(part1_out, lrn_targ[batch_idx_train])
 
-                # defining what results to return: :seMLP
+                # defining what results to return:seMLP
                 result = [np.log(toitem(loss_train)), np.log(toitem(loss_test))]
 
                 results_arr2D.append(result)
@@ -334,42 +331,6 @@ class trainer:
             self.epoch = epoch
 
             acc_train, acc_val, acc_test, loss_train, loss_val, linkp_train, linkp_test = self.train_net()
-            
-            test_LP = 0#1#0.03
-            if np.random.rand()<test_LP:
-                # -p1 -p:viz
-                self.args.verbose=1
-                self.args.embs_LPGraph = torch.zeros(self.teacherGNN.out.shape, dtype=torch.float32)
-                self.args.embs_LPGraph[self.data.train_mask] = self.teacherGNN.out[self.data.train_mask].to('cpu')
-                self.args.data = self.data
-                self.args.args = D()
-                self.args.args.LP_use_softmax = 0
-
-                res = run_pureLP(self.args)
-                out = res.out
-
-                acc_test = evaluate(out, self.data.y, self.data.test_mask)
-                acc_train = evaluate(out, self.data.y, self.data.train_mask)
-                _, linkp_train = self.getLinkp_loss_eva(out, 'train')
-                _, linkp_test = self.getLinkp_loss_eva(out, 'test')
-                print(f'after LP, \n\t mrr train/test = {linkp_train:.3f} / {linkp_test:.3f}' )
-                print(f'\t acc_train/test = {acc_train:.3f} / {acc_test:.3f}' )
-                
-                exp_in_class_similarity(self, res)
-                tmp.append([linkp_train,linkp_test,acc_train,acc_test, res.sim_train_and_c1, res.sim_test_and_c1, res.sim_train_c1c2, res.sim_test_c1c2])
-                if epoch>=100:
-                    tmp = np.array(tmp).T.tolist()
-                    plot_many(tmp, ['linkp_train','linkp_test','acc_train','acc_test', 'sim_train_and_c1', 'sim_test_and_c1', 'sim_train_c1c2', 'sim_test_c1c2'], 'exp_in_class_similarity', reset_random_legend_seed=1)
-                    raise
-                    break
-
-
-                # viz_tsne(self.data, color=tonp(self.data.y)/10, perplexity=30) 
-                # print()
-
-
-
-
 
             val_loss_history.append(loss_val)
 
@@ -378,7 +339,7 @@ class trainer:
                 best_test_acc = acc_test
                 save_model(self.teacherGNN, join(self.modeldir,'best-teacherGNN'))
 
-            # defining what results to return: :TeacherGNN
+            # defining what results to return:TeacherGNN
             results_arr2D.append([np.log(loss_train), acc_train*100, acc_test*100, linkp_train, linkp_test])
             if self.args.want_headtail:
                 results_arr2D[-1].extend(self.bag['headtail__traintest'])
