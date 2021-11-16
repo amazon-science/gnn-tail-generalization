@@ -104,6 +104,11 @@ class MyDataset(torch_geometric.data.data.Data):
 # Citation
 
 ```
-comming soon.
+@article{zheng2021cold,
+  title={Cold Brew: Distilling Graph Node Representations with Incomplete or Missing Neighborhoods},
+  author={Zheng, Wenqing and Huang, Edward W and Rao, Nikhil and Katariya, Sumeet and Wang, Zhangyang and Subbian, Karthik},
+  journal={arXiv preprint arXiv:2111.04840},
+  year={2021}
+}
 ```
 
