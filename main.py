@@ -9,9 +9,7 @@ from datetime import datetime
 import numpy as np
 import torch
 
-from options.base_options import BaseOptions
-import trainer
-from trainer import trainer, AcontainsB
+from base_options import BaseOptions
 
 
 def set_seed(args):
@@ -103,7 +101,14 @@ def tensorRex(dataND, prog, rexName, support_inequal_shape=True):
 
 
 def main():
-    args = BaseOptions().initialize()
+
+    args = BaseOptions().get_arguments()
+    if args.exp_mode == 'coldbrew':
+        from trainer_node_classification import trainer
+    elif args.exp_mode == 'I2_GTL':
+        from trainer_link_prediction import trainer # expeted to contain codes for extended work other than cold brew; coming soon.
+
+
     if args.prog: tensorRex(None, args.prog, args.rexName)
 
     if args.dataset == 'ogbn-arxiv':
@@ -118,7 +123,7 @@ def main():
         trnr = trainer(args, seed)
 
         results_arr2D = trnr.main()
-        print_line_by_line(f'\nthis round, max = ',*results_arr2D.max(axis=1))
+        # print_line_by_line(f'\nthis round, results = ',*results_arr2D.max(axis=1))
         full_recs_3D.append(results_arr2D) # dimensions: [seeds, record_type, epochs]
         del trnr
         torch.cuda.empty_cache()
@@ -140,4 +145,3 @@ def print_line_by_line(*b, tight=False):
 
 if __name__ == "__main__":
     main()
-

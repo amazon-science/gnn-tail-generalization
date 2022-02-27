@@ -1,11 +1,8 @@
-
-
 from networkx.convert_matrix import to_numpy_array
 from numpy.lib import npyio
 from utils import *
-
-from experiment_src import *
-
+from GNN_model.GNN_normalizations import TeacherGNN
+from MLP_model import SEMLP, GraphMLP
 
 
 class trainer:
@@ -34,7 +31,7 @@ class trainer:
 
 
     def run_pureLP(self):
-        from LP.outcome_correlation import label_propagation,gen_normalized_adjs,process_adj
+        from Label_propagation_model.outcome_correlation import label_propagation,gen_normalized_adjs,process_adj
 
         self.args.lpStep_alpha = 0.5
         self.args.lpStep_num_propagations = 50
@@ -63,7 +60,7 @@ class trainer:
         acc_train, acc_test = np.round(acc_train*100,2), np.round(acc_test*100,2)
         print('train,test acc = ', acc_train, acc_test)
 
-        return [[acc_train, acc_test]]
+        return np.array([[acc_train, acc_test]])
 
 
     def train_seMLP_part1(self,):
@@ -151,18 +148,14 @@ class trainer:
             self.seMLP.train()
 
             # ------ select a batch of nodes in the training node set ------
-
             batch_idx_train = np.random.choice(self.seMLP.train_idx, self.args.batch_size)
             part2_out_train = self.seMLP.forward_part2(self.data.x, edge_index=self.data.edge_index, batch_idx=batch_idx_train)
             if self.optimizer is None:
                 self.optimizer = self.seMLP.opt
 
-
-
             loss_train = lossfun(part2_out_train, lrn_targ[batch_idx_train])
             if self.args.train_which=='GraphMLP':
                 loss_train += self.seMLP.loss_NContrastive * self.args.graphMLP_reg
-
 
             self.optimizer.zero_grad()
             loss_train.backward()
@@ -195,7 +188,8 @@ class trainer:
 
                 results_arr2D.append(result)
                 if epoch%20==0:
-                    print(f'epoch {epoch}, acc test {toitem(acc_test):.2}')
+                    # print(f'epoch {epoch}, acc test {toitem(acc_test):.2}')
+                    print(f'epoch {epoch}, acc test {toitem(acc_test):.2f}, head_tail_iso = {result[-3:]}')  if self.args.use_special_split else print(f'epoch {epoch}, acc test {toitem(acc_test):.2}')
 
 
         save_model(self.seMLP, join(self.modeldir,'seMLP'))
@@ -339,16 +333,16 @@ class trainer:
                 best_test_acc = acc_test
                 save_model(self.teacherGNN, join(self.modeldir,'best-teacherGNN'))
 
-            # defining what results to return:TeacherGNN
+            # ---- defining what results to return:TeacherGNN ----
             results_arr2D.append([np.log(loss_train), acc_train*100, acc_test*100, linkp_train, linkp_test])
             if self.args.want_headtail:
-                results_arr2D[-1].extend(self.bag['headtail__traintest'])
+                results_arr2D[-1].extend(self.bag['head_tail_iso'])
 
             if epoch%20 == 0:
                 if self.args.has_loss_component_edgewise:
                     print(f'Ep{epoch:03d}, linkp train/test mrr: {linkp_train:.3f} / {linkp_test:.3f}')
                 else:
-                    print(f'Ep{epoch:03d}, acc @ train/test: {acc_train*100:.1f}, {acc_test*100:.1f} | ', f"headtail-traintest: {self.bag['headtail__traintest']}" if self.args.want_headtail else '')
+                    print(f'Ep{epoch:03d}, acc @ train/test: {acc_train*100:.1f}, {acc_test*100:.1f} | ', f"head_tail_iso: {self.bag['head_tail_iso']}" if self.args.want_headtail else '')
 
 
 
@@ -418,7 +412,7 @@ class trainer:
                     train_iso, test_iso = self.eval_headtail__traintest_v2(all_node_logits[batch_idx], lrn_targ[batch_idx], batch_idx, cal_acc_rounded100)
                     result.extend([test_iso])
 
-            self.bag['headtail__traintest'] = result
+            self.bag['head_tail_iso'] = result
 
         if self.args.has_loss_component_edgewise:
             emb4linkp = res.commonEmb  # for linkp, must use full node embs (without applying train_mask!!)
@@ -486,7 +480,7 @@ class trainer:
 
                         result.extend([test_iso])
 
-                self.bag['headtail__traintest'] = result
+                self.bag['head_tail_iso'] = result
 
             else:
                 res = self.teacherGNN.get_3_embs(self.data.x, self.data.edge_index)

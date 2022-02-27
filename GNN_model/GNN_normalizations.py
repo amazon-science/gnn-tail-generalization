@@ -5,9 +5,7 @@ from torch import nn
 
 from .norm_tricks import *
 from .GCN import TricksComb
-from func_libs import *
-
-
+from utils import D
 
 
 
@@ -31,7 +29,7 @@ class TeacherGNN(nn.Module):
         self.model = GNN_trickComb(args)
 
 
-        self.proj2linkp = getMLP(args.TeacherGNN.neurons_proj2linkp).to(args.device)
+        self.proj2linkp = nn.Identity(); print('\n\n delete the proj2linkp \n\n') # getMLP(args.TeacherGNN.neurons_proj2linkp).to(args.device)
         self.proj2class = proj2class
         self.dglgraph = None
 

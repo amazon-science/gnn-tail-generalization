@@ -49,7 +49,7 @@ def getMLP(neurons, activation=nn.GELU, bias=True, dropout=0.1, last_dropout=Fal
             norm = nn.LayerNorm(neurons[i+1])
         elif normfun=='batchnorm':
             norm = nn.BatchNorm1d(neurons[i+1])
-        nn_list.extend([nn.Linear(neurons[i], neurons[i+1], bias=bias), norm, nn.Dropout(dropout)])
+        nn_list.extend([nn.Linear(neurons[i], neurons[i+1], bias=bias), norm, activation(), nn.Dropout(dropout)])
     
     nn_list.extend([nn.Linear(neurons[n-1], neurons[n], bias=bias)])
     if last_dropout:

@@ -1,4 +1,8 @@
 # Cold Brew: Distilling Graph Node Representations with Incomplete or Missing Neighborhoods
+Wenqing Zheng, Edward W Huang, Nikhil Rao, Sumeet Katariya, Zhangyang Wang, Karthik Subbian.
+
+In [ICLR 2022](https://openreview.net/forum?id=1ugNpm7W6E) and [Arxiv](https://arxiv.org/abs/2111.04840).
+
 ## Introduction
 
 Graph Neural Networks (GNNs) have demonstrated superior performance in node classification or regression tasks, and have emerged as the state of the art in several applications. However, (inductive) GNNs require the edge connectivity structure of nodes to be known beforehand to work well. This is often not the case in several practical applications where the node degrees have power-law distributions, and nodes with a few connections might have noisy edges. An extreme case is the strict cold start (SCS) problem, where there is no neighborhood information available, forcing prediction models to rely completely on node features only. To study the viability of using inductive GNNs to solve the SCS problem, we introduce feature-contribution ratio (FCR), a metric to quantify the contribution of a node's features and that of its neighborhood in predicting node labels, and use this new metric as a model selection reward. We then propose Cold Brew, a new method that generalizes GNNs better in the SCS setting compared to pointwise and graph-based models, via a distillation approach. We show experimentally how FCR allows us to disentangle the contributions of various components of graph datasets, and demonstrate the superior performance of Cold Brew on several public benchmarks and proprietary e-commerce datasets. 
@@ -104,6 +108,11 @@ class MyDataset(torch_geometric.data.data.Data):
 # Citation
 
 ```
-comming soon.
+@article{zheng2021cold,
+  title={Cold Brew: Distilling Graph Node Representations with Incomplete or Missing Neighborhoods},
+  author={Zheng, Wenqing and Huang, Edward W and Rao, Nikhil and Katariya, Sumeet and Wang, Zhangyang and Subbian, Karthik},
+  journal={arXiv preprint arXiv:2111.04840},
+  year={2021}
+}
 ```
 
