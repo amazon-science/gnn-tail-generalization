@@ -342,7 +342,7 @@ class trainer:
                 if self.args.has_loss_component_edgewise:
                     print(f'Ep{epoch:03d}, linkp train/test mrr: {linkp_train:.3f} / {linkp_test:.3f}')
                 else:
-                    print(f'Ep{epoch:03d}, acc @ train/test: {acc_train*100:.1f}, {acc_test*100:.1f} | ', f"head_tail_iso: {self.bag['head_tail_iso']}" if self.args.want_headtail else '')
+                    print(f'Ep{epoch:03d}, acc @ train/test: {acc_train*100:.1f}, {acc_test*100:.1f} ')
 
 
 

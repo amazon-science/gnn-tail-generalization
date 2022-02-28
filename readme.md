@@ -1,4 +1,5 @@
 # Cold Brew: Distilling Graph Node Representations with Incomplete or Missing Neighborhoods
+
 Wenqing Zheng, Edward W Huang, Nikhil Rao, Sumeet Katariya, Zhangyang Wang, Karthik Subbian.
 
 In [ICLR 2022](https://openreview.net/forum?id=1ugNpm7W6E) and [Arxiv](https://arxiv.org/abs/2111.04840).
@@ -23,8 +24,6 @@ We improve teacher GNN with Structural Embedding, and propose student MLP model 
 
 ![coldbrew](figs/coldbrew.png)
 
-
-
 ## Installation Guide
 
 The following commands are used for installing key dependencies; other can be directly installed via pip or conda. A full redundant dependency list is in `requirements.txt`
@@ -39,7 +38,7 @@ pip install torch-geometric
 
 ## Training Guide
 
-In `options/base_options.py`, a full list of useable args is present, with default arguments and candidates initialized.
+In `base_options.py`, a full list of useable args is present, with default arguments and candidates initialized.
 
 ### Comparing between traditional GCN (optimized with Initial/Jumping/Dense/PairNorm/NodeNorm/GroupNorm/Dropouts) and Cold Brew's GNN (optimized with Structural Embedding)
 
@@ -47,7 +46,7 @@ In `options/base_options.py`, a full list of useable args is present, with defau
 
 `python main.py --dataset='Cora' --train_which='TeacherGNN' --whetherHasSE='000' --want_headtail=1 --num_layers=2 --use_special_split=1` Result: `84.15`
 
-`python main.py --dataset='Citeseer'  --train_which='TeacherGNN' --whetherHasSE='000'  --want_headtail=1 --num_layers=2 --use_special_split=1` Result: `71.00`
+`python main.py --dataset='Citeseer'  --train_which='TeacherGNN' --whetherHasSE='000'  --want_headtail=1 --num_layers=2 --use_special_split=1` Result: `69.7`
 
 `python main.py --dataset='Pubmed'  --train_which='TeacherGNN' --whetherHasSE='000'  --want_headtail=1 --num_layers=2 --use_special_split=1` Result: `78.2`
 
@@ -61,17 +60,17 @@ In `options/base_options.py`, a full list of useable args is present, with defau
 
 ### Comparing between MLP models:
 
-#### Training naive MLP: 
+#### Training naive MLP:
 
-`python main.py --dataset='Cora' --train_which='StudentBaseMLP'` Result on isolation split: `63.92`
+`python main.py --dataset='Cora' --train_which='StudentBaseMLP'` Result on isolation split: `61.80`
 
-#### Training GraphMLP: 
+#### Training GraphMLP:
 
 `python main.py --dataset='Cora' --train_which='GraphMLP'` Result on isolation split: `68.63`
 
 #### Training Cold Brew's MLP:
 
-`python main.py --dataset='Cora'  --train_which="SEMLP" --SEMLP_topK_2_replace=3 --SEMLP_part1_arch="2layer" --dropout_MLP=0.5  --studentMLP__opt_lr='torch.optim.Adam&0.005'` Result on isolation split: `69.57`
+`python main.py --dataset='Cora'  --train_which="SEMLP" --SEMLP_topK_2_replace=3 --SEMLP_part1_arch="2layer" --dropout_MLP=0.5  --studentMLP__opt_lr='torch.optim.Adam&0.005'` Result on isolation split: `72.50`
 
 ## Hyperparameter meanings
 
@@ -82,8 +81,6 @@ In `options/base_options.py`, a full list of useable args is present, with defau
 `--SEMLP_topK_2_replace`:  the number of top K best virtual neighbor nodes.
 
 `--manual_assign_GPU`: set the GPU ID to train on. default=-9999, which means to dynamically choose GPU with most remaining memory.
-
-
 
 ## Adaptation Guide
 
@@ -115,4 +112,3 @@ class MyDataset(torch_geometric.data.data.Data):
   year={2021}
 }
 ```
-
