@@ -1,27 +1,21 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from tqdm import tqdm
-
+import h5py
+import numpy as np
+import os
 import torch
 import torch.nn.functional as F
-from torch_sparse import SparseTensor
-from torch_geometric.utils import to_undirected, dropout_adj
-from torch_geometric.data import Data
 
 from copy import deepcopy
-import numpy as np
 from scipy import sparse
+from torch_geometric.data import Data
+from torch_geometric.utils import to_undirected, dropout_adj
 from torch_scatter import scatter
+from torch_sparse import SparseTensor
+from tqdm import tqdm
 
-import h5py
-import os
-
-import numpy as np
 np.random.seed(0)
-
-
-
 
 class MLP(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
@@ -35,7 +29,6 @@ class MLP(torch.nn.Module):
             self.lins.append(torch.nn.Linear(hidden_channels, hidden_channels))
             self.bns.append(torch.nn.BatchNorm1d(hidden_channels))
         self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
-
         self.dropout = dropout
         self.relu_first = relu_first
 
@@ -53,13 +46,9 @@ class MLP(torch.nn.Module):
             x = self.bns[i](x)
             if not self.relu_first:
                 x = F.relu(x, inplace=True)
-
-
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.lins[-1](x)
         return F.log_softmax(x, dim=-1)
-    
-    
 
 class MLPLinear(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -72,20 +61,16 @@ class MLPLinear(torch.nn.Module):
     def forward(self, x):
         return F.log_softmax(self.lin(x), dim=-1)
 
-
-
 def sgc(x, adj, num_propagations):
     for _ in tqdm(range(num_propagations)):
         x = adj @ x
     return torch.from_numpy(x).to(torch.float)
-
 
 def lp(adj, train_idx, labels, num_propagations, p, alpha, preprocess):
     if p is None:
         p = 0.6
     if alpha is None:
         alpha = 0.4
-    
     c = labels.max() + 1
     idx = train_idx
     y = np.zeros((labels.shape[0], c))
@@ -101,11 +86,9 @@ def diffusion(x, adj, num_propagations, p, alpha):
         p = 1.
     if alpha is None:
         alpha = 0.5
-
     inital_features = deepcopy(x)
     x = x **p
     for i in tqdm(range(num_propagations)):
-#         x = (1-args.alpha)* inital_features + args.alpha * adj @ x
         x = x - alpha * (sparse.eye(adj.shape[0]) - adj) @ x
         x = x **p
     return torch.from_numpy(x).to(torch.float)
@@ -123,14 +106,10 @@ def community(data, post_fix):
         np_partition[k] = v
 
     np_partition = np_partition.astype(np.int)
-
     n_values = int(np.max(np_partition) + 1)
     one_hot = np.eye(n_values)[np_partition]
-
     result = torch.from_numpy(one_hot).float()
-    
     torch.save( result, f'LP/embeddings/community{post_fix}.pt')
-        
     return result
 
 def spectral(data, post_fix):
@@ -142,20 +121,15 @@ def spectral(data, post_fix):
     data.edge_index = to_undirected(data.edge_index)
     np_edge_index = np.array(data.edge_index.T)
 
-    
     N = data.num_nodes
     row, col = data.edge_index
     adj = SparseTensor(row=row, col=col, sparse_sizes=(N, N))
     adj = adj.to_scipy(layout='csr')
     result = torch.tensor(Main.main(adj, 128)).float()
-    torch.save(result, f'LP/embeddings/spectral{post_fix}.pt')
-        
+    torch.save(result, f'LP/embeddings/spectral{post_fix}.pt')        
     return result
 
-
-
 def preprocess(data, preprocess = "diffusion", num_propagations = 10, p = None, alpha = None, use_cache = True, post_fix = ""):
-    # use_cache = 0
     if use_cache:
         try:
             x = torch.load(f'LP/embeddings/{preprocess}{post_fix}.pt')
@@ -170,7 +144,6 @@ def preprocess(data, preprocess = "diffusion", num_propagations = 10, p = None, 
     if preprocess == "spectral":
         return spectral(data, post_fix)
 
-    
     print('Computing adj...')
     N = data.num_nodes
     data.edge_index = to_undirected(data.edge_index, data.num_nodes)
@@ -184,20 +157,14 @@ def preprocess(data, preprocess = "diffusion", num_propagations = 10, p = None, 
     adj = deg_inv_sqrt.view(-1, 1) * adj * deg_inv_sqrt.view(1, -1)
 
     adj = adj.to_scipy(layout='csr')
-
     sgc_dict = {}
-
     print(f'Start {preprocess} processing')
 
     if preprocess == "sgc":
         result = sgc(data.x.numpy(), adj, num_propagations)
-#     if preprocess == "lp":
-#         result = lp(adj, data.y.data, num_propagations, p = p, alpha = alpha, preprocess = preprocess)
     if preprocess == "diffusion":
         result = diffusion(data.x.numpy(), adj, num_propagations, p = p, alpha = alpha)
-
     os.makedirs('LP/embeddings', exist_ok=1)
     torch.save(result, f'LP/embeddings/{preprocess}{post_fix}.pt')
-    
     return result
     

@@ -4,7 +4,6 @@
 import torch
 from torch import nn
 
-
 class ResidualConnection(nn.Module):
     def __init__(self, alpha=0.5):
         super(ResidualConnection, self).__init__()
@@ -14,7 +13,6 @@ class ResidualConnection(nn.Module):
         assert len(Xs) >= 1
         return Xs[-1] if len(Xs) == 1 else (1 - self.alpha) * Xs[-1] + self.alpha * Xs[-2]
 
-
 class InitialConnection(nn.Module):
     def __init__(self, alpha=0.5):
         super(InitialConnection, self).__init__()
@@ -23,7 +21,6 @@ class InitialConnection(nn.Module):
     def forward(self, Xs: list):
         assert len(Xs) >= 1
         return Xs[-1] if len(Xs) == 1 else (1 - self.alpha) * Xs[-1] + self.alpha * Xs[0]
-
 
 class DenseConnection(nn.Module):
     def __init__(self, in_dim, out_dim, aggregation='concat'):

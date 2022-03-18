@@ -1,14 +1,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from torch import nn
-
 from .norm_tricks import *
 from .GCN import TricksComb
+from torch import nn
 from utils import D
-
-
-
 
 class TeacherGNN(nn.Module):
     # This class is the teacher GCN model (with structural embedding) for cold brew
@@ -28,18 +24,15 @@ class TeacherGNN(nn.Module):
         from GNN_model.GNN_normalizations import GNN_norm as GNN_trickComb
         self.model = GNN_trickComb(args)
 
-
-        self.proj2linkp = nn.Identity(); print('\n\n delete the proj2linkp \n\n') # getMLP(args.TeacherGNN.neurons_proj2linkp).to(args.device)
+        self.proj2linkp = nn.Identity()
         self.proj2class = proj2class
         self.dglgraph = None
 
     def forward(self, x, edge_index):        
         if self.args.TeacherGNN.change_to_featureless:
             x = x*0
-
         if self.args.dim_learnable_input>0:
             x = self.embs
-        
         commonEmb, self.se_reg_all = self.model(x, edge_index)
         self.out = commonEmb
         return commonEmb
@@ -71,15 +64,10 @@ class TeacherGNN(nn.Module):
         commonEmb_train = commonEmb[train_mask]
         return commonEmb_train, commonEmb
 
-
-
-
 class GNN_norm(nn.Module):
     def __init__(self, args):
         super(GNN_norm, self).__init__()
-
         self.model = TricksComb(args)
         
     def forward(self, x, edge_index):
         return self.model.forward(x, edge_index)
-

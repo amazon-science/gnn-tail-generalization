@@ -1,28 +1,19 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-import torch.nn.functional as F
-from torch import nn
-from .res_tricks import InitialConnection, DenseConnection, ResidualConnection
-from .norm_tricks import *
-from .drop_tricks import DropoutTrick
-
-
+import dgl
+import math
 import torch as th
-from torch import nn
-from torch.nn import init
+import torch.nn.functional as F
+
+from .drop_tricks import DropoutTrick
+from .norm_tricks import *
+from .res_tricks import InitialConnection, DenseConnection, ResidualConnection
 from dgl import function as fn
 from dgl.base import DGLError
 from dgl.utils import expand_as_pair
-import dgl
-
-
-import math
-
-import torch
-import torch.nn.functional as F
 from torch import nn
-
+from torch.nn import init
 
 class TricksComb(nn.Module):
     def __init__(self, args):
@@ -89,14 +80,6 @@ class TricksComb(nn.Module):
         else:
             self.layers_MLP.append(nn.Linear(self.dim_hidden, self.num_classes))
 
-        # # set optimizer
-        # self.reg_params = list(self.layers_GCN.parameters())
-        # self.non_reg_params = list(self.layers_MLP.parameters())
-        # self.optimizer = torch.optim.Adam([
-        #     dict(params=self.reg_params, weight_decay=self.weight_decay1),
-        #     dict(params=self.non_reg_params, weight_decay=self.weight_decay2)
-        # ], lr=self.lr)
-
         # set lambda
         if AcontainsB(self.type_trick, ['IdentityMapping']):
             self.lamda = args.lamda
@@ -106,12 +89,10 @@ class TricksComb(nn.Module):
             self.lamda = 1.
 
     def forward(self, x, edge_index, want_les=False):
-
         if self.dglgraph is None:
             l12 = tonp(edge_index).tolist()
             self.dglgraph = dgl.graph((l12[0],l12[1])).to(self.args.device)
         graph = self.dglgraph
-
 
         x_list = []
         le_collection = []
@@ -138,9 +119,6 @@ class TricksComb(nn.Module):
                 else:
                     se_reg_all += se_reg
 
-
-
-
             x = run_norm_if_any(self, x, i)
 
             if want_les:
@@ -159,10 +137,9 @@ class TricksComb(nn.Module):
             else:
                 x = self.layers_MLP[-1](x)
         if want_les:
-            return x, se_reg_all, torch.cat(le_collection, dim=-1)
+            return x, se_reg_all, th.cat(le_collection, dim=-1)
         else:
             return x, se_reg_all
-
 
     def get_se_dim(self, x, edge_index):
         _,_,les = self.forward(x, edge_index, want_les=1)
@@ -171,9 +148,6 @@ class TricksComb(nn.Module):
     def collect_SE(self, x, edge_index):
         _,_,les = self.forward(x, edge_index, want_les=1)
         return les
-
-
-
 
 class GCNConv(nn.Module):
     # Cold Brew's GCN; modified from DGL official GCN implementation
@@ -205,7 +179,7 @@ class GCNConv(nn.Module):
 
         self.whetherHasSE = whetherHasSE
         if whetherHasSE:
-            self.le = nn.Parameter(torch.randn(args.N_nodes, self._out_feats), requires_grad=True)
+            self.le = nn.Parameter(th.randn(args.N_nodes, self._out_feats), requires_grad=True)
  
     def forward(self, graph, feat, weight=None, edge_weight=None):
 
@@ -250,24 +224,18 @@ class GCNConv(nn.Module):
             if weight is not None:
                 feat_src = th.matmul(feat_src, weight)
 
-
             # ______________ add Structural Embeddings ______________
             # Math: X^{(l+1)}=\sigma\left(\tilde{\bm{A}}\left(X^{(l)} W^{(l)}+E^{(l)}\right)\right), X^{(l)} \in R^{N\times d_{1}}, W^{(l)} \in R^{d_1\times d_{2}}, E^{(l)} \in R^{N\times d_{2}}
             # X^{(L)} and X^{(L+1)} is the input and output of the current convolution layer; E is the structural embedding; \tilde{\bm{A}} is the normalized adjacency matrix. W and E are learnable.
             if self.whetherHasSE:
                 graph.srcdata['h'] = feat_src + self.le
-                se_reg = torch.norm(self.le)
-                
+                se_reg = th.norm(self.le)
+
             else:
                 graph.srcdata['h'] = feat_src
                 se_reg = None
 
             graph.update_all(aggregate_fn, fn.sum(msg='m', out='h'))
-
-
-
-
-
 
             rst = graph.dstdata['h']
 
@@ -309,7 +277,7 @@ class GCNConv(nn.Module):
         return summary.format(**self.__dict__)
 
 def tonp(arr):
-    if type(arr) is torch.Tensor:
+    if type(arr) is th.Tensor:
         return arr.detach().cpu().data.numpy()
     else:
         return np.asarray(arr)

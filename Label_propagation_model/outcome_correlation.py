@@ -1,33 +1,40 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm
-import argparse
-import os
-from collections import defaultdict
-import glob
-
-
-
-from copy import deepcopy
-from torch_sparse import SparseTensor
 from torch_geometric.utils import to_undirected
-import numpy as np
-from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
-# import optuna
+from torch_sparse import SparseTensor
+from tqdm import tqdm
 
-# from logger import Logger
-import random
-import shutil
-import glob
-from collections.abc import Iterable
-import joblib
-
-
-
-
+def general_outcome_correlation_YAG(Y, adj, G, alpha, num_propagations, post_step=lambda x:torch.clamp(x,1e-9,1-1e-9), device='cuda', display=False, use_sparse_mult = False, **trash):
+    """
+    General outcome correlation. alpha_term=True for outcome correlation,
+    alpha_term=False for residual correlation
+    """
+    # what happened: 
+        # z = whatever (can be: <0-vector snapped to label - model_out> (LP-step1), <model_out snapped to labels> (LP-step2), or <0-vector snapped labels> (LP-only) )
+        # math: out = a * adj @ out + (1-a) * y   (out is initialized as out = y)
+    orig_device = Y.device
+    adj = adj.to(device)
+    G = G.to(device)
+    Y = Y.to(device)
+    result = Y.clone()
+    N = Y.shape[0]
+    if use_sparse_mult:
+        for _ in tqdm(range(num_propagations), disable = not display):
+            result = alpha * torch.sparse.mm(adj, result)
+            result += (1-alpha)*G
+            result = result.coalesce()
+            v = post_step(result.values())
+            result = torch.sparse_coo_tensor(result.indices(), v, [N,N])
+    else:
+        for _ in tqdm(range(num_propagations), disable = not display):
+            result = alpha * (adj @ result)
+            result += (1-alpha)*G
+            result = post_step(result)
+    return (Y*0.998 + result*2e-3).to(orig_device)
 
 def process_adj(data):
     N = data.num_nodes
@@ -62,7 +69,7 @@ def model_load(file, device='cpu'):
         split = torch.load(f'{file}.split', map_location='cpu')
     except:
         split = None
-    
+
     mx_diff = (result.sum(dim=-1) - 1).abs().max()
     if mx_diff > 1e-1:
         print(f'Max difference: {mx_diff}')
@@ -107,7 +114,6 @@ def pre_outcome_correlation(labels, model_out, label_idx, **trash):
     # what happened: 
         # z = model_out; y = labels
         # it snaps z: z[idx] = y[idx]
-
     labels = labels.cpu()
     model_out = model_out.cpu()
     label_idx = label_idx.cpu()
@@ -116,7 +122,7 @@ def pre_outcome_correlation(labels, model_out, label_idx, **trash):
     y = model_out.clone()
     if len(label_idx) > 0:
         y[label_idx] = F.one_hot(labels[label_idx],c).float().squeeze(1) 
-    
+
     return y
 
 def general_outcome_correlation(adj, y, alpha, num_propagations, post_step, alpha_term, device='cuda', display=True, **trash):
@@ -158,7 +164,6 @@ def double_correlation_autoscale(data, model_out, split_idx, A1, alpha1, num_pro
         label_idx = torch.cat([split_idx['train'], split_idx['valid']])
         residual_idx = label_idx
 
-        
     y = pre_residual_correlation(labels=data.y.data, model_out=model_out, label_idx=residual_idx)
     resid = general_outcome_correlation(adj=A1, y=y, alpha=alpha1, num_propagations=num_propagations1, post_step=lambda x: torch.clamp(x, -1.0, 1.0), alpha_term=True, display=display, device=device)
 
@@ -171,7 +176,7 @@ def double_correlation_autoscale(data, model_out, split_idx, A1, alpha1, num_pro
     res_result[res_result.isnan()] = model_out[res_result.isnan()]
     y = pre_outcome_correlation(labels=data.y.data, model_out=res_result, label_idx = label_idx)
     result = general_outcome_correlation(adj=A2, y=y, alpha=alpha2, num_propagations=num_propagations2, post_step=lambda x: torch.clamp(x, 0,1), alpha_term=True, display=display, device=device)
-    
+
     return res_result, result
 
 def double_correlation_fixed(data, model_out, split_idx, A1, alpha1, num_propagations1, A2, alpha2, num_propagations2, scale=1.0, train_only=False, device='cuda', display=True, **trash):
@@ -184,23 +189,21 @@ def double_correlation_fixed(data, model_out, split_idx, A1, alpha1, num_propaga
         label_idx = torch.cat([split_idx['train'], split_idx['valid']])
         residual_idx = label_idx
 
-
     y = pre_residual_correlation(labels=data.y.data, model_out=model_out, label_idx=residual_idx)
-    
+
     fix_y = y[residual_idx].to(device)
     def fix_inputs(x):
         x[residual_idx] = fix_y
         return x
-    
+
     resid = general_outcome_correlation(adj=A1, y=y, alpha=alpha1, num_propagations=num_propagations1, post_step=lambda x: fix_inputs(x), alpha_term=True, display=display, device=device)
     res_result = model_out + scale*resid
-    
+
     y = pre_outcome_correlation(labels=data.y.data, model_out=res_result, label_idx = label_idx)
 
     result = general_outcome_correlation(adj=A2, y=y, alpha=alpha2, num_propagations=num_propagations2, post_step=lambda x: x.clamp(0, 1), alpha_term=True, display=display, device=device)
-    
-    return res_result, result
 
+    return res_result, result
 
 def only_outcome_correlation(data, model_out, split_idx, A, alpha, num_propagations, labels, device='cuda', display=True, **trash):
     res_result = model_out.clone()
@@ -209,10 +212,8 @@ def only_outcome_correlation(data, model_out, split_idx, A, alpha, num_propagati
     result = general_outcome_correlation(adj=A, y=y, alpha=alpha, num_propagations=num_propagations, post_step=lambda x: torch.clamp(x, 0, 1), alpha_term=True, display=display, device=device)
     return res_result, result
     
-
 def get_run_from_file(out):
     return int(os.path.splitext(os.path.basename(out))[0])
-
 
 def get_orig_acc(data, eval_test, model_outs, split_idx):
     logger_orig = Logger(len(model_outs))
@@ -227,11 +228,7 @@ def get_orig_acc(data, eval_test, model_outs, split_idx):
     
 def prepare_folder(name, model):
     model_dir = f'models/{name}'
-   
-    # if os.path.exists(model_dir):
-    #     shutil.rmtree(model_dir)
     os.makedirs(model_dir, exist_ok=1)
     with open(f'{model_dir}/metadata', 'w') as f:
         f.write(f'# of params: {sum(p.numel() for p in model.parameters())}\n')
     return model_dir
-

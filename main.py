@@ -2,15 +2,40 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
+import json
+import numpy as np
 import os
 import random
-import json
-from datetime import datetime
-import numpy as np
 import torch
 
 from base_options import BaseOptions
+from datetime import datetime
 
+def main():
+    args = BaseOptions().get_arguments()
+    if args.exp_mode == 'coldbrew':
+        from trainer_node_classification import trainer
+    elif args.exp_mode == 'I2_GTL':
+        from trainer_link_prediction import trainer # expected to contain codes for extended work other than cold brew; coming soon.
+
+    if args.prog: tensorRex(None, args.prog, args.rexName)
+    full_recs_3D = []
+    for seed in range(args.N_exp):
+        print(f'seed (which_run) = <{seed}>')
+
+        args.random_seed = seed
+        set_seed(args)
+        torch.cuda.empty_cache()
+        trnr = trainer(args, seed)
+
+        results_arr2D = trnr.main()
+
+        full_recs_3D.append(results_arr2D) # dimensions: [seeds, record_type, epochs]
+        del trnr
+        torch.cuda.empty_cache()
+        gc.collect()
+
+    if args.prog: tensorRex(full_recs_3D, args.prog, args.rexName)
 
 def set_seed(args):
     torch.backends.cudnn.deterministic = True
@@ -98,41 +123,6 @@ def tensorRex(dataND, prog, rexName, support_inequal_shape=True):
         np.save(rexName, rec)
         return
 
-
-
-def main():
-
-    args = BaseOptions().get_arguments()
-    if args.exp_mode == 'coldbrew':
-        from trainer_node_classification import trainer
-    elif args.exp_mode == 'I2_GTL':
-        from trainer_link_prediction import trainer # expeted to contain codes for extended work other than cold brew; coming soon.
-
-
-    if args.prog: tensorRex(None, args.prog, args.rexName)
-
-    if args.dataset == 'ogbn-arxiv':
-        args.N_exp = min(args.N_exp,20)
-    full_recs_3D = []
-    for seed in range(args.N_exp):
-        print(f'seed (which_run) = <{seed}>')
-
-        args.random_seed = seed
-        set_seed(args)
-        torch.cuda.empty_cache()
-        trnr = trainer(args, seed)
-
-        results_arr2D = trnr.main()
-        # print_line_by_line(f'\nthis round, results = ',*results_arr2D.max(axis=1))
-        full_recs_3D.append(results_arr2D) # dimensions: [seeds, record_type, epochs]
-        del trnr
-        torch.cuda.empty_cache()
-        gc.collect()
-
-    if args.prog: tensorRex(full_recs_3D, args.prog, args.rexName)
-
-
-
 def print_line_by_line(*b, tight=False):
     print('\n')
     for x in b:
@@ -140,8 +130,6 @@ def print_line_by_line(*b, tight=False):
         if not tight: print()
     print('\n')
     return
-
-
 
 if __name__ == "__main__":
     main()

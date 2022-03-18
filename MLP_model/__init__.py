@@ -1,7 +1,5 @@
 from utils import *
 
-
-
 class StudentBaseMLP(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -39,7 +37,6 @@ class BlockResMLP(nn.Module):
         neurons = [self.dim_model] + [self.dim_hidden]*(skip_conn_period-1) + [self.dim_model]
         self.blocks = nn.ModuleList([getMLP(neurons, activation=activation, bias=bias, dropout=dropout, last_dropout=True) for _ in range(self.num_blocks-1)])
         self.blocks.append(getMLP(neurons, activation=activation, bias=bias, dropout=dropout, last_dropout=False))
-
         return
 
     def forward(self, x):
@@ -50,8 +47,6 @@ class BlockResMLP(nn.Module):
             x = h + x
         x = self.out_proj(x)
         return x
-
-
 
 class SEMLP(nn.Module):
     # The implementation of Cold Brew's MLP.
@@ -78,7 +73,6 @@ class SEMLP(nn.Module):
             self.out_proj = nn.Linear(self.hidden_dim, args.num_classes_bkup)
         return
 
-
     def forward_part1(self, x, edge_index=None, batch_idx=None):        
         if self.has_NCloss and self.adj_pow is None:
             adj = graphUtils.normalize_adj(edge_index)
@@ -97,7 +91,6 @@ class SEMLP(nn.Module):
                 nlayer = int(self.args.SEMLP_part1_arch[0])
                 neurons = [neurons_io[0]] + [256]*(nlayer-1) + [neurons_io[1]]
                 self.part1 = getMLP(neurons, dropout=self.args.dropout_MLP).to(self.args.device)
-
             self.opt = self.optfun(self.parameters(),lr=self.args.lr, weight_decay=self.args.weight_decay)
 
         if batch_idx is not None:
@@ -106,7 +99,6 @@ class SEMLP(nn.Module):
         return le_guess
 
     def forward_part2(self, x, batch_idx=None, edge_index=None, ):
-
         if batch_idx is not None:
             x = x[batch_idx]
         if self.args.SEMLP__downgrade_to_MLP:
@@ -130,15 +122,10 @@ class SEMLP(nn.Module):
             if self.args.train_which=='GraphMLP':
                 self.part2 = GraphMLP(self.args, self.train_mask).to(self.args.device)
             elif self.args.train_which=='StudentBaseMLP':
-
-                # self.part2 = getMLP(neurons, dropout=self.args.dropout).to(self.args.device)
-
                 self.part2 = BlockResMLP(dims_in_out = [self.args.num_feats, self.args.num_classes_bkup], dim_model=dim_model, skip_conn_period=self.args.StudentBaseMLP.skip_conn_period, num_blocks=self.args.StudentBaseMLP.num_blocks).to(self.args.device)
             else:
                 neurons = [part2_in.shape[1], 256, self.args.num_classes_bkup]
                 self.part2 = getMLP(neurons, dropout=self.args.dropout_MLP).to(self.args.device)
-
-
 
             self.opt = self.optfun(self.parameters(),lr=self.args.lr, weight_decay=self.args.weight_decay)
        
@@ -148,8 +135,6 @@ class SEMLP(nn.Module):
             self.loss_NContrastive = res.loss_NContrastive
         else:
             y = self.part2(part2_in)
-
-
         return y
 
     def forward(self, x, edge_index=None):
@@ -157,7 +142,6 @@ class SEMLP(nn.Module):
 
     def replacement(self, le_guess, node_idx=None):
         le_guess = le_guess.detach()
-        
         res_N_feat = []
         teacherSE_T = self.teacherSE.transpose(0,1)
         if node_idx is None:
@@ -169,11 +153,7 @@ class SEMLP(nn.Module):
             attn_1N = F.softmax(attn_1N[:,select], dim=1)
             z_1_feat = torch.matmul(attn_1N, self.teacherSE[select])
             res_N_feat.append(z_1_feat)
-        
         return torch.cat(res_N_feat, dim=0).detach()
-
-
-
 
 class GraphMLP(nn.Module):
     # pytorch re-implementation of GRAPHMLP: https://arxiv.org/pdf/2106.04051.pdf
@@ -207,8 +187,6 @@ class GraphMLP(nn.Module):
         raise NotImplementedError
         return self.model(x)
 
-
-
 def get_neighbor_contrastive_loss(z, adj_pow, batch_idx, tau):
     mask = torch.eye(len(z)).to(z.device)
     simz = (1 - mask) * torch.exp(cosine_sim(z)/tau)    # shape: [B, B]
@@ -219,7 +197,6 @@ def get_neighbor_contrastive_loss(z, adj_pow, batch_idx, tau):
     loss_NContrastive = - torch.mean(torch.log(numerator[nonzero]/denominator[nonzero]))
     return loss_NContrastive
 
-
 def cosine_sim(x):
     # This function returns the pair-wise cosine semilarity.
     # x.shape = [N_nodes, 256]
@@ -229,6 +206,3 @@ def cosine_sim(x):
     x_sum = x_sum @ x_sum.T
     x_dis = x_dis * (x_sum ** (-1))
     return x_dis
-
-
-

@@ -8,7 +8,6 @@ from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.utils import dropout_adj, subgraph
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 
-
 # implemented based on GCNModel: https://github.com/DropEdge/DropEdge/blob/master/src/models.py
 # Baseblock MultiLayerGCNBlock with nbaseblocklayer=1
 class DropEdge(nn.Module):
@@ -171,4 +170,3 @@ class DropoutTrick(nn.Module):
                 edge_index, edge_weight = gcn_norm(edge_index, edge_weight, num_nodes, False)
             new_adjs = DroppedEdges([(edge_index, edge_weight)])
         return new_adjs
-
