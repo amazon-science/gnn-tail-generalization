@@ -3,7 +3,7 @@ alembic==1.6.5
 astor==0.8.1
 attrs==21.2.0
 cachetools==4.2.2
-certifi==2021.5.30
+certifi==2023.7.22
 chardet==4.0.0
 click==8.0.1
 cliff==3.8.0
